@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Reorder a Spotify playlist</h1>
+<p class="lead">Sort by tempo, mix harmonically along the Camelot wheel, or build a mood arc, then save the result as a new playlist.</p>
+
+{% if not logged_in %}
+  <div class="card center">
+    <p>First, connect your Spotify account.</p>
+    <a class="btn" href="{{ url_for('login') }}">Log in with Spotify</a>
+  </div>
+{% else %}
+  {# A GET form: the URL becomes /playlist?url=...&strategy=..., so results are bookmarkable. #}
+  <form action="{{ url_for('playlist') }}" method="get" class="card form">
+    <label>Playlist link
+      <input name="url" placeholder="https://open.spotify.com/playlist/…" required autofocus>
+    </label>
+    <label>Sort strategy
+      <select name="strategy">
+        {% for key, s in strategies.items() %}
+          <option value="{{ key }}">{{ s.label }}: {{ s.description }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn" data-loading="Fetching tracks and audio features…">Analyze playlist</button>
+  </form>
+  <p class="muted small">Development Mode apps can only read playlists you own or collaborate on.</p>
+{% endif %}
+{% endblock %}

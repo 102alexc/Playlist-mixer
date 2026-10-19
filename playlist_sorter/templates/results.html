@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.name }} · Playlist Sorter{% endblock %}
+{% block content %}
+<section class="playlist-head">
+  {% if meta.image_url %}<img src="{{ meta.image_url }}" alt="" class="cover">{% endif %}
+  <div>
+    <h1>{{ meta.name }}</h1>
+    <p class="muted">
+      by {{ meta.owner }} · {{ stats.count }} tracks · {{ stats.minutes }} min
+      {% if stats.avg_bpm %} · avg {{ stats.avg_bpm }} BPM{% endif %}
+      {% if stats.smooth is defined %} · {{ stats.smooth }}/{{ stats.count - 1 }} smooth key changes{% endif %}
+    </p>
+    <p class="muted small">Audio features from {{ provider }}.
+      {% if stats.missing %}{{ stats.missing }} track(s) have no data and are listed last.{% endif %}
+    </p>
+  </div>
+</section>
+
+<div class="toolbar">
+  {# Changing the select re-submits this form (see app.js). #}
+  <form method="get" action="{{ url_for('playlist') }}" class="inline" id="strategy-form">
+    <input type="hidden" name="url" value="{{ playlist_url }}">
+    <label>Sort by
+      <select name="strategy" data-autosubmit>
+        {% for key, s in strategies.items() %}
+          <option value="{{ key }}" {% if key == strategy %}selected{% endif %}>{{ s.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button class="btn">Apply</button></noscript>
+  </form>
+
+  <form method="post" action="{{ url_for('export') }}" class="inline export">
+    <input type="hidden" name="playlist_id" value="{{ playlist_id }}">
+    <input type="hidden" name="strategy" value="{{ strategy }}">
+    <input name="name" value="{{ meta.name }} ({{ strategies[strategy].label }})" aria-label="New playlist name">
+    <label class="check"><input type="checkbox" name="public"> Public</label>
+    <button class="btn" data-loading="Creating playlist…">Save to Spotify</button>
+  </form>
+</div>
+
+<p class="muted small">{{ strategies[strategy].description }}</p>
+
+<div class="table-wrap">
+<table class="tracks">
+  <thead>
+    <tr>
+      <th>#</th><th>Track</th><th class="num">BPM</th><th>Key</th>
+      <th>Energy</th><th>Mood</th>
+      {% if strategy == 'camelot' %}<th>Transition</th>{% endif %}
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for t in tracks %}
+    <tr class="{{ '' if t.has_features else 'no-data' }}">
+      <td class="muted">{{ loop.index }}</td>
+      <td class="track">
+        {% if t.image_url %}<img src="{{ t.image_url }}" alt="" loading="lazy">{% endif %}
+        <div><div class="title">{{ t.name }}</div><div class="muted small">{{ t.artist_str }}</div></div>
+      </td>
+      <td class="num">{{ t.tempo|round|int if t.tempo else '—' }}</td>
+      <td>
+        {% if t.camelot %}
+          {# Colour = position on the wheel, so neighbouring keys get similar hues. #}
+          <span class="camelot" style="--hue: {{ (t.camelot[:-1]|int) * 30 }}">{{ t.camelot }}</span>
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% if t.energy is not none %}
+          <span class="bar" title="energy {{ '%.2f'|format(t.energy) }}"><span style="width: {{ (t.energy * 100)|round }}%"></span></span>
+        {% else %}—{% endif %}
+      </td>
+      <td><span class="mood mood-{{ t.mood|lower }}">{{ t.mood }}</span></td>
+      {% if strategy == 'camelot' %}
+        <td class="small {{ 'ok' if t.extra.smooth else 'muted' }}">{{ t.extra.transition or '' }}</td>
+      {% endif %}
+      <td class="edit">
+        {# <details> gives a click-to-open form with no JavaScript. #}
+        <details>
+          <summary class="small">{{ 'Edit' if t.manual else ('Edit' if t.has_features else 'Add data') }}{{ ' ✎' if t.manual }}</summary>
+          <form method="post" action="{{ url_for('override') }}" class="override">
+            <input type="hidden" name="track_id" value="{{ t.id }}">
+            <input type="hidden" name="playlist_url" value="{{ playlist_url }}">
+            <input type="hidden" name="strategy" value="{{ strategy }}">
+            <label>BPM <input name="bpm" inputmode="decimal" value="{{ t.tempo|round(1) if t.tempo else '' }}"></label>
+            <label>Key (Camelot, e.g. 8A) <input name="key" maxlength="3" value="{{ t.camelot or '' }}"></label>
+            <label>Energy 0–100 <input name="energy" inputmode="decimal" value="{{ (t.energy * 100)|round|int if t.energy is not none else '' }}"></label>
+            <label>Valence 0–100 <input name="valence" inputmode="decimal" value="{{ (t.valence * 100)|round|int if t.valence is not none else '' }}"></label>
+            <div class="row">
+              <button class="btn small" name="action" value="save">Save</button>
+              {% if t.manual %}<button class="btn small secondary" name="action" value="clear">Remove manual values</button>{% endif %}
+            </div>
+          </form>
+        </details>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<p class="small"><a href="{{ url_for('playlist', url=playlist_url, strategy=strategy, refresh=1) }}">Re-fetch from Spotify</a></p>
+{% endblock %}

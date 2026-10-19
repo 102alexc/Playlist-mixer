@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Setup · Playlist Sorter{% endblock %}
+{% block content %}
+<h1>Connect your Spotify app</h1>
+<p class="lead">One-time setup. The values are saved to a local <code>.env</code> file and never leave your machine except to talk to Spotify.</p>
+
+<ol class="steps">
+  <li>Open the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a> and click <b>Create app</b>. (Development Mode apps need the owner to have Spotify Premium.)</li>
+  <li>Under <b>Redirect URIs</b>, add exactly:<br><code class="copy">{{ settings.redirect_uri }}</code><br>
+      <span class="muted">Spotify no longer accepts <code>localhost</code>; use <code>127.0.0.1</code>.</span></li>
+  <li>Tick <b>Web API</b> under “Which API/SDKs are you planning to use”, then save.</li>
+  <li>In <b>User Management</b>, add the email of every Spotify account that will log in (up to 5 in Development Mode).</li>
+  <li>Open <b>Settings</b>, copy the <b>Client ID</b> and <b>Client secret</b>, and paste them below.</li>
+</ol>
+
+<form method="post" class="card form">
+  <label>Client ID
+    <input name="client_id" value="{{ settings.client_id if settings.is_configured else '' }}" required autocomplete="off">
+  </label>
+  <label>Client Secret
+    <input name="client_secret" type="password" autocomplete="off"
+           placeholder="{{ 'Leave empty to keep the saved one' if settings.is_configured else '' }}"
+           {% if not settings.is_configured %}required{% endif %}>
+  </label>
+  <label>Redirect URI
+    <input name="redirect_uri" value="{{ settings.redirect_uri }}">
+  </label>
+  <label>Audio features source
+    <select name="features_provider">
+      {% for value, label in [('auto', 'Auto: Spotify, falling back to ReccoBeats'),
+                              ('spotify', 'Spotify only (apps approved before Nov 2024)'),
+                              ('reccobeats', 'ReccoBeats only (free, no key)')] %}
+        <option value="{{ value }}" {% if settings.features_provider == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="btn">Save credentials</button>
+</form>
+{% endblock %}
